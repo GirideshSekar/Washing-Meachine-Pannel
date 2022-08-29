@@ -1,0 +1,295 @@
+#include "mbed.h"
+#include <string>
+#include <iostream>
+#define WAIT_TIME_MS 500ms 
+// #define TWO 200ms 
+// #define THREE 300ms
+// #define FOUR 400ms  
+#define NOTE_C4  262
+#define NOTE_D4  294
+
+
+DigitalIn buttonA(PC_10);
+DigitalIn buttonB(PC_11);
+InterruptIn buttonC(PD_2);
+AnalogIn pot1(PA_5);
+DigitalOut led1(PC_0);
+DigitalOut led2(PC_1);
+DigitalOut led3(PB_0);
+DigitalOut led4(PA_4);
+PwmOut green_LED(PB_5);
+AnalogIn pot2(PA_6);
+AnalogIn pot3(PA_7);
+PwmOut buzzer(PA_15);
+AnalogIn FSR(PA_1);
+void SegDis_init();
+void SegDis_endcycle();
+void init(); 
+void play_note(int frequency);
+void Ledon11();
+void run();
+void cycle11();
+void Segment11();
+void Water11();
+void Temptime();
+void interupt();
+void flip();
+int cntl_val = 0;
+int cntl_val1 = 0;
+float y;
+float z;
+float frequency = 100;
+string x= "";
+int buttonDown = 0;
+float pot1_val = 0.0f;
+BusOut leds_bus(PC_1, PB_0, PA_4);
+void init_leds();
+int cntl_val2 = 0;
+void weight();
+void action();
+void lighttime();
+AnalogIn LDR(PC_2);
+float pot2_val = 0.0f;
+
+    
+BusOut SegDis(PA_11,PA_12,PB_1,PB_15,PB_14,PB_12,PB_11 );
+DigitalOut decimal_point(PB_2);
+int hexDis[] = {0X3F,0X06,0X5B,0X4F,0X66,0x6D,0x7D,0x07,0x7F,0x6F}; // Add the rest of the hex values associated with the dispplay items 0-F
+int dp_status = 0;
+const int scale[] = {NOTE_C4, NOTE_D4};
+
+int main(){
+    //led3.write(0);
+    //buttonC.mode(PullNone);
+    //buttonC.rise(&flip);
+    led1.write(0);
+    buttonA.mode(PullNone);
+    init_leds();
+    while(1){
+        if (buttonA) {  
+            if  (!buttonDown) {  
+                led1 = !led1;                 
+                buttonDown = 1;    
+                ThisThread::sleep_for(100ms); }}
+        else {
+            //printf("test");
+            buttonDown = false;}
+        //if(buttonA.read()==1){
+        //    Ledon11(); 
+        //}
+        if(led1==1){
+            //printf("power is ON\n");
+            Segment11();  
+            Water11(); 
+            weight();
+            cycle11();
+            //interupt();
+
+        }
+        else{
+            green_LED.write(0);
+            SegDis.write(0);
+            dp_status =0;
+            init_leds();
+
+        }
+    }
+}
+
+void Ledon11(){
+    led1.write(buttonA.read());
+    //Segment11();
+}
+
+void Segment11()
+{
+    //SegDis_init(); //test segments   
+    //for(int i = 0; i < 16; i++){        
+    //SegDis.write(hexDis[i]);
+    //decimal_point.write(dp_status); 
+    //dp_status = !dp_status;         
+    //ThisThread::sleep_for(WAIT_TIME_MS);
+    //    }
+    SegDis_endcycle();
+}
+
+
+void SegDis_endcycle(){
+    cntl_val = pot1.read_u16()/13107;          
+    if(cntl_val==0){
+        SegDis.write(0x3F);
+        //printf("Cycle state 0\n");
+        x="Quick wash selected";
+    }
+    else if(cntl_val==1){
+        SegDis.write(0x06);
+        x="Rinse cycle selected";
+        //printf("Cycle state 1\n");
+    }
+    else if(cntl_val==2){
+        SegDis.write(0x5B);
+        //printf("Cycle state 2\n");
+        x="Dryer selected";
+    }
+    else if(cntl_val==3){
+        SegDis.write(0x4F);
+        //printf("Cycle state 3\n");
+        x="whites selected";
+        }
+    else{
+        SegDis.write(0X66);
+        //printf("Cycle state 4\n");
+        x="extra Rinse selected";
+    }
+    ThisThread::sleep_for(100ms);
+    //Water11();
+}
+
+
+
+void Water11()
+{
+    init();
+    y=pot2.read();
+    green_LED.write(y);
+    //printf("Everything Set\n");
+    //cycle11();
+}
+
+void cycle11(){
+    if(buttonB.read()== 1){
+         run();//call the cyclerun function
+    }
+}
+
+void run(){
+    SegDis_init(); //test segments 
+    printf("Power is on\n");
+    //printf("");
+    std::cout << x << "\n";
+    if(cntl_val2==1 or cntl_val2==0){
+        printf("Weight capacity is less than 50%\n");
+        printf("Everything is set\n");
+        printf("Cycle ends in\n"); 
+        action();
+        printf("the cycle is over\n");
+    }
+    else if(cntl_val2==2){
+        printf("Weight capacity is less than 100%\n");
+        printf("Everything is set\n");
+        printf("Cycle ends in\n"); 
+        action();
+        printf("the cycle is over\n");
+    }
+    else{
+        printf("meachine is overloaded\n");
+        printf("Reduce the weight\n");
+        SegDis.write(0x3F);
+    }
+        //printf("the cycle is over\n");
+        for(int i = 0; i < 1; i++){        
+                play_note(scale[i]);    
+            }
+
+            buzzer.pulsewidth_us(0); 
+    //printf("the cycle is over");
+}
+
+void SegDis_init(){
+    SegDis.write(0x00); 
+    ThisThread::sleep_for(200ms);
+}
+
+void init(){           
+    green_LED.write(0.0);    
+    green_LED.period(1/frequency); 
+}
+ 
+void Temptime(){
+    cntl_val1 = pot2.read_u16()/13107;
+              
+       if(cntl_val1==0){ThisThread::sleep_for(1000ms); }
+        else if(cntl_val1==1){ThisThread::sleep_for(1500ms);}
+        else if(cntl_val1==2){ThisThread::sleep_for(2000ms);;}
+        else if(cntl_val1==3){ThisThread::sleep_for(2500ms);;}
+        else{ThisThread::sleep_for(3000ms);}
+}
+
+void lighttime(){
+    pot2_val = LDR.read()*2.4;
+    if(pot2_val<0.1){
+        printf("entered night mode\n");
+        ThisThread::sleep_for(150s);
+        //printf("entered night mode");
+    }
+    else{
+        ThisThread::sleep_for(0ms);
+    }
+
+}
+
+
+void weight(){
+    cntl_val2 = pot3.read_u16()/16383;
+              
+       if(cntl_val2==0){leds_bus.write(0);}
+        else if(cntl_val2==1){leds_bus.write(1);}
+        else if(cntl_val2==2){leds_bus.write(3);}
+        else{leds_bus.write(7);}
+        
+        ThisThread::sleep_for(100ms);
+}
+
+void play_note(int frequency){
+    buzzer.period_us((float) 1000000.0f/ (float) frequency);    
+    buzzer.pulsewidth_us(buzzer.read_period_us()/2);            
+    ThisThread::sleep_for(500ms);                               
+}
+
+void init_leds(){
+    leds_bus.write(0);   //turn off leds by default
+}
+
+void action(){
+    for(int i =9; i>=  0; i--){        
+            SegDis.write(hexDis[i]);
+            decimal_point.write(dp_status); 
+            dp_status = !dp_status;         
+            Temptime();
+            lighttime();
+            printf("%d\n",i);
+            pot1_val = FSR.read()*2.4;  
+            if(pot1_val>0.5){
+                
+                printf("the drum is open\n");
+                ThisThread::sleep_for(5000ms);
+                printf("the drum is close\n"); 
+                i=i+3;
+            }
+            if( buttonB==1){
+                printf("Emergency open\n");
+                printf("Cycle stopped\n");  
+                i=0;
+                //led3=!led3;
+                SegDis.write(0x79);
+                green_LED.write(0);
+
+            }
+        }
+}
+
+
+
+
+void interupt()
+{
+    
+}
+
+
+void flip()
+{
+    //led3 = !led3;
+    //SegDis.write(0x79);
+    //green_LED.write(0);
+}
